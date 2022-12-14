@@ -102,7 +102,7 @@ Table initTable(){
     return table;
 }
 int* createProcess(){
-    int i,n = rand() % (2*kilobyte);
+    int i,n = 2*kilobyte;
     int* process = (int*)malloc(sizeof(int)*n);
     for(i = 0; i < n; i++) process[i] = rand() % (kilobyte);
     return process;
@@ -171,13 +171,34 @@ char** convertToBinary(int** hex){
     }
     return result;
 }
+char* convertDecimalToBinary(int page){
+    Pair hexValues[] = {{'0',"0000"},
+                        {'1',"0001"},
+                        {'2',"0010"},
+                        {'3',"0011"},
+                        {'4',"0100"},
+                        {'5',"0101"},
+                        {'6',"0110"},
+                        {'7',"0111"},
+                        {'8',"1000"},
+                        {'9',"1001"},
+                        {'a',"1010"},
+                        {'b',"1011"},
+                        {'c',"1100"},
+                        {'d',"1101"},
+                        {'e',"1110"},
+                        {'f',"1111"},};
+    char buffer[3];
+    sprintf(buffer,"%d",page);
+    return findValue(0,16,buffer[0],hexValues);
+}
 void tableFormat(Table table){
     printf("-----------------------------------------------------------------\n");
     printf("|\tValid\t|Process\t|\tModified\t|Page\t|\n");
     printf("-----------------------------------------------------------------\n");
     while(table.size > 0){
         printf("|\t%d\t|",table.head->valid);
-        for(int i = 0; i < sizeof(table.head->frame)/2;i++) printf("%d",table.head->frame[i]);
+        for(int i = 0; i < 5;i++) printf("%d",table.head->frame[i]);
         printf("\t|\t%d\t\t|%d\t|\n",table.head->modified,table.head->page);
         printf("-----------------------------------------------------------------\n");
         printf("|\t\t\tVirtual Direction\t\t\t|\n");
@@ -211,6 +232,26 @@ void printTables(Table table,Table table2){
     int n;
     scanf("%d",&n);
 }
+void printTransformation(Table table){
+    while(table.size > 0){
+        if(table.head->physicalDirection != NULL){
+            for(int i = 0 ; i < 2*kilobyte ; i++){
+                char** conversion = convertToBinary(&table.head->physicalDirection[i]);
+                printf("%p -> %s ",&table.head->physicalDirection[i],convertDecimalToBinary(table.head->page));
+                for(int j = 0 ; j < 12 ; j++) printf("%s",conversion[j]);
+                printf("\n");
+            }
+        }
+        for(int i = 0 ; i < 2*kilobyte ; i++){
+            char** conversion = convertToBinary(&table.head->virtualDirection[i]);
+            printf("Direction -> Conversion\n");
+            printf("%p -> %s ",&table.head->virtualDirection[i],convertDecimalToBinary(table.head->page));
+            for(int j = 0 ; j < 12 ; j++) printf("%s",conversion[j]);
+            printf("\n");
+        }
+        table.deleteFront(&table);
+    }
+}
 int main(){
     srand(time(NULL));
     //We use 16, 32 and 2 "kilobyte" instead of 64, 32 and 4 "kilobyte" 'cause integer variable have 2 bytes by default,
@@ -224,10 +265,10 @@ int main(){
     Table pagesTable = initTable();
     Table physicalMemoryTable = initTable();
     int n, *process;
-    int m = 7;
+    int m = 8;
     do{
         system("clear");
-        printf("1) Create process\n2) Move X process to Physical Memory\n3) See Pages Table\n4) See Physical memory table\n5) Delete a process\n6) See both tables\n%d) Exit\n",m);
+        printf("1) Create process\n2) Move X process to Physical Memory\n3) See Pages Table\n4) See Physical memory table\n5) Delete a process\n6) See both tables\n7) See the transformations\n%d) Exit\n",m);
         scanf("%d",&n);
         switch(n){
             case 1:{
@@ -264,7 +305,13 @@ int main(){
                                 physicalMemoryPosition ++;
                             }else{
                                 printf("Critical Error...\nNo more memory space...\n");
-                                //Aplicar aquí algoritmo para eliminar procesos
+                                progressBar("Clearing space...");
+                                physicalMemoryTable.deleteFront(&physicalMemoryTable);
+                                int** tmp = (int**)malloc(sizeof(int*)*8);
+                                for(int i = 1 ; i < physicalMemoryPosition ; i++) tmp[i-1] = physicalMemory[i];
+                                physicalMemory = (int**)malloc(sizeof(int*)*8);
+                                physicalMemory = tmp;
+                                physicalMemoryPosition--;
                             }
                         }else{
                             if(page > pagesTable.size) printf("Page out of the range, try again...\n");
@@ -284,9 +331,26 @@ int main(){
                 printTable(physicalMemoryTable);
             }
             break;
+            case 5:{
+                progressBar("Clearing space...");
+                physicalMemoryTable.deleteFront(&physicalMemoryTable);
+                int** tmp = (int**)malloc(sizeof(int*)*8);
+                for(int i = 1 ; i < physicalMemoryPosition ; i++) tmp[i-1] = physicalMemory[i];
+                physicalMemory = (int**)malloc(sizeof(int*)*8);
+                physicalMemory = tmp;
+                physicalMemoryPosition--;
+            }
+            break;
             case 6:{
                 printTables(pagesTable,physicalMemoryTable);
             }
+            break;
+            case 7:{
+                printTransformation(pagesTable);
+                int t;
+                scanf("%d",&t);
+            }
+            break;
         }
     }while(n < m);
 }
